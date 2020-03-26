@@ -1,0 +1,52 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# this is a sample file generated from default.conf.tmpl
+
+js_include conf.d/all.js;
+
+js_set $return_cookie gen_cookie;
+
+js_set $valid_inbound_request check_inbound_request;
+
+map $http_cookie $signed_cookie_seen
+{
+    default 0;
+    "~Cloud-CDN-Cookie=URLPrefix.*" 1;
+}
+
+proxy_cache_path /dev/shm/ keys_zone=one:10m;
+upstream backend {
+    server nginx-backend-for-cdn:8080;
+}
+
+
+server {
+    listen       80;
+    location ~ "list.v$" {
+        proxy_pass http://backend$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-Ip $remote_addr;
+        proxy_set_header X-From-Nginx $remote_addr;
+        proxy_set_header Cookie $return_cookie;
+        proxy_cache_key "$host$uri";
+        proxy_cache one;
+        proxy_cache_key "$host$uri";
+        proxy_cache one;
+        if ($valid_inbound_request = 0) {
+          return 403;
+        }
+        add_header Set-Cookie $return_cookie;
+    }
+}

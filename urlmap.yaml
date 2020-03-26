@@ -1,0 +1,54 @@
+# Copyright 2020 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# change the following
+# _YOUR_PROJECT_ID_: the project id
+# _YOUR_REAL_BACKEND_: the backend serving the real contents
+# _YOUR_HOSTNAMES_: the hostname you want to serve with
+# _NGX_403_: the backend with a cluster of nginx which will always answer 403
+# _NGINX_COOKIE_SETTER_: the backend with a cluster of nginx which will generate the SignedCookie for CloudCDN
+# _NAME_OF_THIS_URLMAP_: the name of this urlmap
+
+defaultService: https://www.googleapis.com/compute/v1/projects/_YOUR_PROJECT_ID_/global/backendServices/_YOUR_REAL_BACKEND_
+hostRules:
+- hosts:
+  - _YOUR_HOSTNAMES_
+  pathMatcher: path-matcher-1
+kind: compute#urlMap
+name: _NAME_OF_THIS_URLMAP_
+pathMatchers:
+- defaultService: https://www.googleapis.com/compute/v1/projects/_YOUR_PROJECT_ID_/global/backendServices/_NGX_403_
+  name: path-matcher-1
+  routeRules:
+  - matchRules:
+    - headerMatches:
+      - headerName: "X-From-Nginx"
+        presentMatch: true
+      - headerName: "Cookie"
+        prefixMatch: "Cloud-CDN-Cookie="
+    priority: 0
+    service: https://www.googleapis.com/compute/v1/projects/_YOUR_PROJECT_ID_/global/backendServices/_YOUR_REAL_BACKEND_
+  - matchRules:
+    - headerMatches:
+      - headerName: "Cookie"
+        prefixMatch: "Cloud-CDN-Cookie="
+    priority: 1
+    service: https://www.googleapis.com/compute/v1/projects/_YOUR_PROJECT_ID_/global/backendServices/_YOUR_REAL_BACKEND_
+  - matchRules:
+    - queryParameterMatches:
+      - name: signature
+        presentMatch: true
+    priority: 4
+    service: https://www.googleapis.com/compute/v1/projects/_YOUR_PROJECT_ID_/global/backendServices/_NGINX_COOKIE_SETTER_
+
